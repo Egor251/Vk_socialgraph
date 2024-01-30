@@ -113,8 +113,6 @@ class VK:
         else:
             DB().create_db(self.roundy, self.name)
 
-
-
     # Восстанавливает прогресс в случае досрочной остановки поиска и перезапуска
     def repair_process(self, roundy):
 
@@ -131,6 +129,7 @@ class VK:
                 if self.cursor.fetchone() is None:
                     current_round = i - 1
                     for j in range(current_round, -1, -1):
+                        #TODO: repair_process: перепроверить
                         self.cursor.execute(f"Select * FROM round{roundy};")
                         if self.cursor.fetchone() is not None:
                             current_round = j
@@ -144,15 +143,9 @@ class VK:
                 current_friend = self.cursor.fetchall()[0][1]
         return current_round, current_friend  # Возвращает массив типа [roundy, friendid]
 
-    # Функция сохранения базы в gexf файле
-    def save_data(self, G, filename="graph.gexf"):
-        nx.write_gexf(G, filename, encoding='utf-8', prettyprint=True, version='1.2draft')
-
     # Предельно тупой поиск друзей
     def friends_search(self):
 
-        #conn = sqlite3.connect(f'db/{targetid}.db')
-        #cursor = conn.cursor()
         start_round = 1
         start_friend = None
         if self.rep == 1:
@@ -168,9 +161,7 @@ class VK:
 
                 sql = f'SELECT friendid from round{i - 1} WHERE is_closed = 0'
                 self.cursor.execute(sql)
-                friends = self.cursor.fetchall()  # Начал возвращать список из кортежей типа [(1111,), (1112,)... не ясно почему. Или может всегда так было...
-
-                #friends = [x[0] for x in friends]  # избавляемся от кортежей
+                friends = self.cursor.fetchall()
 
                 friends = Utils().unique(friends)
                 try:
@@ -195,7 +186,6 @@ class VK:
         return all_users  # возращает массив типа [id, ..]
 
     def node_attr_preparation(self, lis):
-        #TODO: node_attr_preparation: перенести в graph.py
         all_users = self.all_users_list(lis)
         node_attrs = {}
         for item in tqdm(all_users):
@@ -328,39 +318,7 @@ class VK:
         return members  # возвращаем массив типа [[уникальный (наверное) id запроса, baseid,
         # friendid, закрыт профиль или нет],...]
 
-    '''# Создаёт базу (очевидно же..)
-    def create_db(self, targetid, roundy, typy='normal'):
-        if not os.path.exists('db'):
-            os.mkdir('db')
-
-        conn = sqlite3.connect(f'db/{targetid}.db')  # или :memory: чтобы сохранить в RAM
-        cursor = conn.cursor()
-        if typy == 'normal':
-            # cursor.execute("""CREATE TABLE IF NOT EXISTS target(userid INT PRIMARY KEY, first_name TEXT, last_name TEXT, sex INT, city TEXT, country TEXT, birth_date TEXT, company TEXT, position TEXT, university TEXT, faculty TEXT, graduation INT, education_status TEXT, home_town TEXT, is_closed INT); """)
-            for i in range(roundy + 1):
-                cursor.execute(f"""CREATE TABLE IF NOT EXISTS round{i} (
-                   ID INT, baseid INT, friendid INT, is_closed INT);
-                """)
-            conn.commit()
-        elif typy == 'hidden':
-            for i in range(5):
-                cursor.execute(f"""CREATE TABLE IF NOT EXISTS attempt{i} (
-                   ID INT, baseid INT, friendid INT, is_closed INT);
-                """)
-            for i in range(roundy + 1):
-                cursor.execute(f"""CREATE TABLE IF NOT EXISTS round{i} (
-                   ID INT, baseid INT, friendid INT, is_closed INT);
-                """)
-            cursor.execute(f"""CREATE TABLE IF NOT EXISTS result (
-                           baseid INT, friendid INT, is_closed INT);
-                        """)
-            conn.commit()
-        else:
-            assert False, "Дебил..."
-'''
-
     # Поиск друзей скрытого пользователя
-
     def get_hidden(self, start, target, deep):  # принимает начальную точку поиска (можно несколько массивом), цель и глубину поиска
 
         start_round = 1
@@ -439,21 +397,21 @@ class VK:
         #self.targetid = self.checker(targetid)
         self.friends_search()
 
-        lis = Utils().graph_data_preparation(DB().get_connections_from_db(self.roundy))
+        lis = GraphTools().graph_data_preparation(DB().get_connections_from_db(self.roundy))
         all_users, node_attrs = self.node_attr_preparation(lis)
 
-        self.save_data(GraphTools().get_graph(lis, all_users, node_attrs), f'{self.targetid}.gexf')
+        GraphTools.save_data(GraphTools().get_graph(lis, all_users, node_attrs), f'{self.targetid}.gexf')
 
     def hidden_account_start(self, start):
         self.get_hidden(start, self.targetid, 2)
 
-        lis = Utils().graph_data_preparation(DB().get_connections_from_db(self.roundy, 'hidden'))
+        lis = GraphTools().graph_data_preparation(DB().get_connections_from_db(self.roundy, 'hidden'))
         all_users, node_attrs = self.node_attr_preparation(lis)
 
-        self.save_data(GraphTools().get_graph(lis, all_users, node_attrs), f'{self.targetid}.gexf')
+        GraphTools.save_data(GraphTools().get_graph(lis, all_users, node_attrs), f'{self.targetid}.gexf')
 
 if __name__ == "__main__":
-    os.environ["NUMBA_DISABLE_PERFORMANCE_WARNINGST"] = '1'
+
     token = ""
     #session = vk.Session(access_token=token)  # Авторизация
     #vk_api = vk.API(session)

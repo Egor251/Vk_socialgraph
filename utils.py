@@ -1,10 +1,12 @@
 # Уникализирует элементы массива. Ускорено numba
 from numba import njit
 from tqdm import tqdm
+import os
 import time
 
 
 class Utils:
+    os.environ["NUMBA_DISABLE_PERFORMANCE_WARNINGST"] = '1'
 
     @staticmethod
     @njit
@@ -24,12 +26,5 @@ class Utils:
                 unique.append(number)
         return unique
 
-    # добавляет длину ребра (1) к парам ID для передачи в get_graph
-    def graph_data_preparation(self, a):
-        c = []
-        all_users = []
-        for b in a:
-            c.append([b[0], b[1], 1])
 
-        return c  # возвращаем массив типа [[baseid, friendid, 1],...] и массив с перечнем всех уникальных юзеров
 

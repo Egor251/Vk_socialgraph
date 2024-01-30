@@ -43,3 +43,15 @@ class GraphTools:
         plt.show()
         return G  # Возвращает граф с которым дальше может работать networkx
 
+# добавляет длину ребра (1) к парам ID для передачи в get_graph
+    @staticmethod
+    def graph_data_preparation(a):
+        c = []
+        for b in a:
+            c.append([b[0], b[1], 1])
+
+        return c  # возвращаем массив типа [[baseid, friendid, 1],...] и массив с перечнем всех уникальных юзеров
+
+# Функция сохранения базы в gexf файле
+    def save_data(self, G, filename="graph.gexf"):
+        nx.write_gexf(G, filename, encoding='utf-8', prettyprint=True, version='1.2draft')
