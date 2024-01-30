@@ -7,10 +7,16 @@ class Main:
         VK.name = name
         VK.roundy = roundy
 
-        VK().open_account_start()
+        if name == 'normal':
+            VK().open_account_start()
+        elif name == 'hidden':
+            if start == 0:
+                print('Не указана точка старта')
+            else:
+                VK().hidden_account_start(start)
 
 
 if __name__ == '__main__':
-    targetid = 'sanyafinik'  # Кого пробиваем (id или ник)
+    targetid = ''  # Кого пробиваем (id или ник)
     roundy = 2  # число раундов. 0 - бесполезно, 1 - пару минут, 2 - час или больше, 3 - 1 или 2 дня, 4 - дурак, чтоль?
     Main().vk_socialgraph(targetid, roundy)
