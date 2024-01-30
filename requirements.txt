@@ -1,0 +1,6 @@
+vk
+networkx
+tqdm
+numba
+sqlalchemy
+matplotlib
