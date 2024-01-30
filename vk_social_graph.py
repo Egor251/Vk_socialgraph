@@ -76,28 +76,6 @@ from create_config import create_config
 os.environ["NUMBA_DISABLE_PERFORMANCE_WARNINGST"] = '1'
 
 
-'''# Уникализирует элементы массива. Ускорено numba
-@njit
-def unique(list1):
-    unique = []
-    for number in list1:
-        if number not in unique:
-            unique.append(number)
-    return unique
-
-
-# Уникализирует элементы массива. Не ускорено numba)
-def usual_unique(list1):
-    unique = []
-    for number in tqdm(list1):
-        if number not in unique:
-            unique.append(number)
-    return unique
-'''
-#unique = Utils().unique()
-#usual_unique = Utils.usual_unique()
-
-
 class VK:
 
     config_path = "config.ini"
@@ -107,69 +85,54 @@ class VK:
     token = config.get("API", "VK_api")
     vk_api = vk.API(access_token=token)
     targetid = ''
+    conn = None
+    cursor = None
+    rep = 0
+    name = 'normal'
+    roundy = 0
 
     def __init__(self):
         if not os.path.exists(self.config_path):
             create_config(self.config_path)
         config = configparser.ConfigParser()
         config.read(self.config_path)
+        self.targetid = self.checker(self.targetid)
+        DB.targetid = self.checker(self.targetid)
 
+        self.conn = sqlite3.connect(f'db/{self.targetid}.db')
+        self.cursor = self.conn.cursor()
 
-
-    # Из готовой базы ищет пересечения
-    def get_connections_from_db(self, roundy, type='normal'):
-        conn = sqlite3.connect(f'db/{self.targetid}.db')
-        cursor = conn.cursor()
-        total = []
-        if type == 'normal':
-            total += cursor.execute(f'select baseid, friendid from round0')
-            for i in tqdm(range(1, roundy + 1)):
-                cursor.execute(f'select baseid, friendid from round{i - 1}')
-                a = Utils().graph_data_preparation(cursor.fetchall())
-                b = []
-                for j in tqdm(a):
-                    sql = f'select baseid, friendid from round{i} where friendid = {j[1]}'
-                    cursor.execute(sql)
-                    b += Utils().graph_data_preparation(cursor.fetchall())
-                print(len(b))
-                total += b
-        elif type == 'hidden':
-            total += cursor.execute(f'select baseid, friendid from result')
-            tmp = []
-            b = []
-            for i in tqdm(range(0, roundy + 1)):
-                cursor.execute(f'select baseid, friendid from round{i} where friendid = {total[0][0]}')
-                a = cursor.fetchall()
-                tmp += a
-                b = []
-                for j in tqdm(tmp):
-                    cursor.execute(f'select baseid, friendid from round{i} where friendid = {j[1]}')
-                    b += Utils().graph_data_preparation(cursor.fetchall())
-            total += Utils().graph_data_preparation(tmp)
-            total += b
+        if not os.path.exists('db'):
+            os.mkdir('db')
+        if os.listdir('db').count(f'{self.targetid}.db') != 0:
+            try:
+                self.cursor.execute(f'select * from round0').fetchall()
+                self.rep = 1
+            except Exception:
+                DB().create_db(self.roundy, self.name)
         else:
-            assert False, "Дебил..."
-        return total  # возвращаем массив типа [[baseid, friendid],...]
+            DB().create_db(self.roundy, self.name)
+
+
 
     # Восстанавливает прогресс в случае досрочной остановки поиска и перезапуска
     def repair_process(self, roundy):
-        conn = sqlite3.connect(f'db/{self.targetid}.db')
-        cursor = conn.cursor()
+
         current_round = 0
         sql = f"Select * FROM round{roundy} WHERE baseid = {0};"
-        cursor.execute(sql)
-        full = cursor.fetchall()
+        self.cursor.execute(sql)
+        full = self.cursor.fetchall()
         current_friend = ''
         if len(full) != 0:
             current_round = -1
         else:
             for i in range(roundy + 2):
-                cursor.execute(f"Select name FROM sqlite_master WHERE type='table' AND name='round{i}';")
-                if cursor.fetchone() is None:
+                self.cursor.execute(f"Select name FROM sqlite_master WHERE type='table' AND name='round{i}';")
+                if self.cursor.fetchone() is None:
                     current_round = i - 1
                     for j in range(current_round, -1, -1):
-                        cursor.execute(f"Select * FROM round{roundy};")
-                        if cursor.fetchone() is not None:
+                        self.cursor.execute(f"Select * FROM round{roundy};")
+                        if self.cursor.fetchone() is not None:
                             current_round = j
                             break
                         if j == 0:
@@ -177,8 +140,8 @@ class VK:
                     break
             if current_round > 0:
                 sql = f"SELECT * FROM round{current_round} WHERE ID = (SELECT MAX(ID) FROM round{current_round});"
-                cursor.execute(sql)
-                current_friend = cursor.fetchall()[0][1]
+                self.cursor.execute(sql)
+                current_friend = self.cursor.fetchall()[0][1]
         return current_round, current_friend  # Возвращает массив типа [roundy, friendid]
 
     # Функция сохранения базы в gexf файле
@@ -186,33 +149,26 @@ class VK:
         nx.write_gexf(G, filename, encoding='utf-8', prettyprint=True, version='1.2draft')
 
     # Предельно тупой поиск друзей
-    def friends_search(self, targetid, roundy, rep=0):
+    def friends_search(self):
 
-        if not os.path.exists('db'):
-            os.mkdir('db')
-        if os.listdir('db').count(f'{targetid}.db') != 0:
-            rep = 1
-        else:
-            DB().create_db(roundy, 'normal')
-
-        conn = sqlite3.connect(f'db/{targetid}.db')
-        cursor = conn.cursor()
+        #conn = sqlite3.connect(f'db/{targetid}.db')
+        #cursor = conn.cursor()
         start_round = 1
         start_friend = None
-        if rep == 1:
-            tmp_tupple = self.repair_process(roundy)
+        if self.rep == 1:
+            tmp_tupple = self.repair_process(self.roundy)
             start_round = tmp_tupple[0]
             start_friend = tmp_tupple[1]
         else:
             DB().insert_db(self.get_members(self.targetid, 0), 0)
         start = 0
         if start_round != -1:
-            for i in range(int(start_round), roundy + 1):
+            for i in range(int(start_round), self.roundy + 1):
                 #TODO: friends search: при остановке на первом же круге выбрасывает ошибку sql в round-1
 
                 sql = f'SELECT friendid from round{i - 1} WHERE is_closed = 0'
-                cursor.execute(sql)
-                friends = cursor.fetchall()  # Начал возвращать список из кортежей типа [(1111,), (1112,)... не ясно почему. Или может всегда так было...
+                self.cursor.execute(sql)
+                friends = self.cursor.fetchall()  # Начал возвращать список из кортежей типа [(1111,), (1112,)... не ясно почему. Или может всегда так было...
 
                 #friends = [x[0] for x in friends]  # избавляемся от кортежей
 
@@ -405,22 +361,11 @@ class VK:
 
     # Поиск друзей скрытого пользователя
 
-    def get_hidden(self, start, target, deep):  # принимает начальную точку поиска (можно несколько массивом),
+    def get_hidden(self, start, target, deep):  # принимает начальную точку поиска (можно несколько массивом), цель и глубину поиска
 
-        # цель и глубину поиска
-        rep = 0
-        if not os.path.exists('db'):  # проверка на существование папки и бд
-            os.mkdir('db')
-        if os.listdir('db').count(f'{targetid}.db') != 0:
-            rep = 1
-        else:
-            DB().create_db(roundy, 'hidden')
-
-        conn = sqlite3.connect(f'db/{targetid}.db')
-        cursor = conn.cursor()
         start_round = 1
         start_friend = None
-        if rep == 1:
+        if self.rep == 1:
             tmp_tupple = self.repair_process(deep)
             start_round = tmp_tupple[0]
             start_friend = tmp_tupple[1]
@@ -437,23 +382,23 @@ class VK:
             while zbs is None:  # ищем до тех пор, пока не найдём хоть одного друга
                 i += 1
                 sql = f'SELECT friendid from attempt{i - 1} WHERE is_closed = 1'
-                cursor.execute(sql)
-                friends = cursor.fetchall()
+                self.cursor.execute(sql)
+                friends = self.cursor.fetchall()
                 friends = Utils().unique(friends)
                 if friends.count((target,)) != 0:
                     zbs = 1
                 else:
                     sql = f'SELECT friendid from attempt{i - 1} WHERE is_closed = 0'
-                    cursor.execute(sql)
-                    friends = cursor.fetchall()
+                    self.cursor.execute(sql)
+                    friends = self.cursor.fetchall()
                     friends = Utils().unique(friends)
                     for fr in tqdm(range(len(friends))):
                         DB().insert_db(self.get_members(friends[fr][0], fr), i, 'attempt')
                     DB().insert_db([0, 'FULL', 'FULL', 2], i, 'attempt')
 
             sql = f'SELECT baseid from attempt{i - 1} WHERE friendid = {target}'  # Начинаем основной цикл
-            cursor.execute(sql)
-            entrypoint = cursor.fetchall()
+            self.cursor.execute(sql)
+            entrypoint = self.cursor.fetchall()
             entrypoint = Utils().unique(entrypoint)
             print(f'Найдено точек входа: {len(entrypoint)}')
             for ent in entrypoint:
@@ -462,8 +407,8 @@ class VK:
                 start_round += 1
             for i in range(start_round, deep + 1):
                 sql = f'SELECT friendid from round{i - 1} WHERE is_closed = 0;'
-                cursor.execute(sql)
-                friends = cursor.fetchall()
+                self.cursor.execute(sql)
+                friends = self.cursor.fetchall()
                 friends = Utils().usual_unique(friends)
                 try:
                     start_friend = friends.index((start_friend,))
@@ -474,38 +419,38 @@ class VK:
                     DB().insert_db(self.get_members(friends[fr][0], fr), i)
 
                     sql = f'SELECT baseid, is_closed from round{i - 1} WHERE friendid = {target}'
-                    cursor.execute(sql)
-                    check = cursor.fetchall()
+                    self.cursor.execute(sql)
+                    check = self.cursor.fetchall()
                     try:
                         check = Utils().unique(check)
                         value = []
                         for item in check:
                             value.append([target, item[0], item[1]])
                         for val in value:
-                            cursor.executemany(f"INSERT INTO result VALUES (?,?,?)", (val,))
-                            conn.commit()
+                            self.cursor.executemany(f"INSERT INTO result VALUES (?,?,?)", (val,))
+                            self.conn.commit()
                     except ValueError:
                         check = 0
                 print(f'Раунд: {i}')
                 print(f'Найдено друзей: {len(check)}')
                 DB().insert_db([[-1, 0, 0, 1]], i)  # отметка о полном заполнении таблицы
 
-    def open_account_start(self, targetid, roundy):
-        self.targetid = self.checker(targetid)
-        self.friends_search(self.targetid, roundy)
+    def open_account_start(self):
+        #self.targetid = self.checker(targetid)
+        self.friends_search()
 
-        lis = Utils().graph_data_preparation(self.get_connections_from_db(roundy))
+        lis = Utils().graph_data_preparation(DB().get_connections_from_db(self.roundy))
         all_users, node_attrs = self.node_attr_preparation(lis)
 
-        self.save_data(GraphTools().get_graph(lis, all_users, node_attrs), f'{targetid}.gexf')
+        self.save_data(GraphTools().get_graph(lis, all_users, node_attrs), f'{self.targetid}.gexf')
 
-    def hidden_account_start(self, start, targetid, roundy):
-        self.get_hidden(self.checker(start), self.checker(targetid), 2)
+    def hidden_account_start(self, start):
+        self.get_hidden(start, self.targetid, 2)
 
-        lis = Utils().graph_data_preparation(self.get_connections_from_db(roundy, 'hidden'))
+        lis = Utils().graph_data_preparation(DB().get_connections_from_db(self.roundy, 'hidden'))
         all_users, node_attrs = self.node_attr_preparation(lis)
 
-        self.save_data(GraphTools().get_graph(lis, all_users, node_attrs), f'{targetid}.gexf')
+        self.save_data(GraphTools().get_graph(lis, all_users, node_attrs), f'{self.targetid}.gexf')
 
 if __name__ == "__main__":
     os.environ["NUMBA_DISABLE_PERFORMANCE_WARNINGST"] = '1'
@@ -532,7 +477,7 @@ if __name__ == "__main__":
     except Exception:
         pass'''
 
-    VK().open_account_start(targetid, roundy)
+    VK().open_account_start()
 
     # поиск скрытого пользователя
     # VK().get_hidden(start, targetid, 2)

@@ -1,57 +1,12 @@
-import sqlalchemy
 import sqlite3
 import os
-#from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from utils import Utils
+from tqdm import tqdm
 
 
 class DB:
 
-    class Rounds(sqlalchemy.orm.declarative_base()):
-        __tablename__ = ''
-
-        ID = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
-        baseid = sqlalchemy.Column(sqlalchemy.Integer)
-        friendid = sqlalchemy.Column(sqlalchemy.Integer)
-        is_closed = sqlalchemy.Column(sqlalchemy.Integer)
-
     targetid = ''
-    engine = None
-    session = None
-    metadata = None
-
-    def __init__(self):
-        self.engine = sqlalchemy.create_engine(f'sqlite:///db/{self.targetid}.db', echo=True)
-        self.session = sessionmaker(autoflush=True, bind=self.engine)
-        self.metadata = sqlalchemy.MetaData()
-
-    def _sqlalchemy_create_db(self, targetid, roundy, typy='normal'):  # http://sparrigan.github.io/sql/sqla/2016/01/03/dynamic-tables.html
-        # Если есть желание можно допилить, но в целом необходимости нет
-        '''engine = sqlalchemy.create_engine(f'sqlite://db/{targetid}.db')
-        conn = engine.connect()
-        metadata = sqlalchemy.MetaData()
-
-        make_session = sessionmaker(bind=engine)
-        session = make_session()  # create a Session
-        base = declarative_base()
-
-        class MyTableClass(base):
-            __tablename__ = 'myTableName'
-            myFirstCol = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
-            mySecondCol = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
-
-        base.metadata.create_table(engine)
-
-        for i in range(roundy + 1):
-            table_variable = sqlalchemy.Table(f'round{i}', metadata,
-                                              sqlalchemy.Column('ID', sqlalchemy.Integer),
-                                              sqlalchemy.Column('baseid', sqlalchemy.Integer),
-                                              sqlalchemy.Column('friendid', sqlalchemy.Integer),
-                                              sqlalchemy.Column('is_closed', sqlalchemy.Boolean)
-                                              )
-            metadata.create_all(engine)
-            '''
-        pass
 
     def create_db(self, roundy, typy='normal'):
         if not os.path.exists('db'):
@@ -98,13 +53,41 @@ class DB:
         just_id(value, roundy, name)
         conn.commit()
 
-    def sqlalchemy_insert_db(self, value, roundy, name='round'):
-        user_table = f'{name}{roundy}'
-        #self.Rounds.__tablename__ = user_table
-        table = sqlalchemy.Table(user_table, self.metadata)
-        #stmt = (sqlalchemy.insert(user_table).values(name='username', fullname='Full Username'))
-        with self.engine.connect() as connection:
-            query = table.insert(table).values(value)
+        # Из готовой базы ищет пересечения
+
+    def get_connections_from_db(self, roundy, type='normal'):
+        conn = sqlite3.connect(f'db/{self.targetid}.db')
+        cursor = conn.cursor()
+        total = []
+        if type == 'normal':
+            total += cursor.execute(f'select baseid, friendid from round0')
+            for i in tqdm(range(1, roundy + 1)):
+                cursor.execute(f'select baseid, friendid from round{i - 1}')
+                a = Utils().graph_data_preparation(cursor.fetchall())
+                b = []
+                for j in tqdm(a):
+                    sql = f'select baseid, friendid from round{i} where friendid = {j[1]}'
+                    cursor.execute(sql)
+                    b += Utils().graph_data_preparation(cursor.fetchall())
+                print(len(b))
+                total += b
+        elif type == 'hidden':
+            total += cursor.execute(f'select baseid, friendid from result')
+            tmp = []
+            b = []
+            for i in tqdm(range(0, roundy + 1)):
+                cursor.execute(f'select baseid, friendid from round{i} where friendid = {total[0][0]}')
+                a = cursor.fetchall()
+                tmp += a
+                b = []
+                for j in tqdm(tmp):
+                    cursor.execute(f'select baseid, friendid from round{i} where friendid = {j[1]}')
+                    b += Utils().graph_data_preparation(cursor.fetchall())
+            total += Utils().graph_data_preparation(tmp)
+            total += b
+        else:
+            assert False, "Дебил..."
+        return total  # возвращаем массив типа [[baseid, friendid],...]
 
 if __name__ == '__main__':
     pass
