@@ -7,13 +7,23 @@ from sqlalchemy.orm import sessionmaker
 
 class DB:
 
+    class Rounds(sqlalchemy.orm.declarative_base()):
+        __tablename__ = ''
+
+        ID = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
+        baseid = sqlalchemy.Column(sqlalchemy.Integer)
+        friendid = sqlalchemy.Column(sqlalchemy.Integer)
+        is_closed = sqlalchemy.Column(sqlalchemy.Integer)
+
     targetid = ''
     engine = None
     session = None
+    metadata = None
 
     def __init__(self):
-        engine = sqlalchemy.create_engine(f'sqlite:///db/{self.targetid}.db', echo=True)
-        session = sessionmaker(autoflush=True, bind=engine)
+        self.engine = sqlalchemy.create_engine(f'sqlite:///db/{self.targetid}.db', echo=True)
+        self.session = sessionmaker(autoflush=True, bind=self.engine)
+        self.metadata = sqlalchemy.MetaData()
 
     def _sqlalchemy_create_db(self, targetid, roundy, typy='normal'):  # http://sparrigan.github.io/sql/sqla/2016/01/03/dynamic-tables.html
         # Если есть желание можно допилить, но в целом необходимости нет
@@ -72,10 +82,29 @@ class DB:
         else:
             assert False, "Как можно умудриться принудительно в коде ввести не тот ключ?"
 
-    def sqlalchemy_insert_db(self, targetid, value, roundy, name='round'):
+    # вносит записи в базу (снова очевидно же..)
+    def insert_db(self, value, roundy, name='round'):
+
+        def just_id(value, roundy, name):
+            try:
+                if isinstance(value[0], list):
+                    for val in value:
+                        cursor.executemany(f"INSERT INTO {name + str(roundy)} VALUES (?,?,?,?)", (val,))
+            except IndexError:
+                pass
+
+        conn = sqlite3.connect(f'db/{self.targetid}.db')
+        cursor = conn.cursor()
+        just_id(value, roundy, name)
+        conn.commit()
+
+    def sqlalchemy_insert_db(self, value, roundy, name='round'):
         user_table = f'{name}{roundy}'
+        #self.Rounds.__tablename__ = user_table
+        table = sqlalchemy.Table(user_table, self.metadata)
         #stmt = (sqlalchemy.insert(user_table).values(name='username', fullname='Full Username'))
-        query = self.engine.execute(f"INSERT INTO {user_table} VALUES (?,?,?,?)", (value,))
+        with self.engine.connect() as connection:
+            query = table.insert(table).values(value)
 
 if __name__ == '__main__':
     pass

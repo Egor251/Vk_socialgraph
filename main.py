@@ -8,6 +8,6 @@ class Main:
         VK().open_account_start(targetid, roundy)
 
 if __name__ == '__main__':
-    targetid = 'sanyafinik'  # Кого пробиваем (id или ник)
+    targetid = ''  # Кого пробиваем (id или ник)
     roundy = 2  # число раундов. 0 - бесполезно, 1 - пару минут, 2 - час или больше, 3 - 1 или 2 дня, 4 - дурак, чтоль?
     Main().vk_socialgraph(targetid, roundy)

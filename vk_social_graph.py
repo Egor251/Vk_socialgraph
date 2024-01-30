@@ -2,7 +2,6 @@
 import os
 import time
 import sqlite3
-from sqlalchemy import create_engine
 
 from db import DB
 from graph_tools import GraphTools
@@ -115,6 +114,8 @@ class VK:
         config = configparser.ConfigParser()
         config.read(self.config_path)
 
+
+
     # Из готовой базы ищет пересечения
     def get_connections_from_db(self, roundy, type='normal'):
         conn = sqlite3.connect(f'db/{self.targetid}.db')
@@ -203,22 +204,26 @@ class VK:
             start_round = tmp_tupple[0]
             start_friend = tmp_tupple[1]
         else:
-            self.insert_db(self.get_members(self.targetid, 0), 0)
+            DB().insert_db(self.get_members(self.targetid, 0), 0)
         start = 0
         if start_round != -1:
             for i in range(int(start_round), roundy + 1):
                 #TODO: friends search: при остановке на первом же круге выбрасывает ошибку sql в round-1
+
                 sql = f'SELECT friendid from round{i - 1} WHERE is_closed = 0'
                 cursor.execute(sql)
-                friends = cursor.fetchall()
+                friends = cursor.fetchall()  # Начал возвращать список из кортежей типа [(1111,), (1112,)... не ясно почему. Или может всегда так было...
+
+                #friends = [x[0] for x in friends]  # избавляемся от кортежей
+
                 friends = Utils().unique(friends)
                 try:
                     start = friends.index((start_friend,))
                 except Exception:
                     pass
                 for fr in tqdm(range(start, len(friends))):
-                    self.insert_db(self.get_members(friends[fr][0], fr), i)
-                self.insert_db([[0, 0, 0, 1]], i)
+                    DB().insert_db(self.get_members(friends[fr][0], fr), i)
+                DB().insert_db([[0, 0, 0, 1]], i)
 
     # получаем массив уникальных id
     def all_users_list(self, a):
@@ -234,6 +239,7 @@ class VK:
         return all_users  # возращает массив типа [id, ..]
 
     def node_attr_preparation(self, lis):
+        #TODO: node_attr_preparation: перенести в graph.py
         all_users = self.all_users_list(lis)
         node_attrs = {}
         for item in tqdm(all_users):
@@ -396,21 +402,6 @@ class VK:
         else:
             assert False, "Дебил..."
 '''
-    # вносит записи в базу (снова очевидно же..)
-    def insert_db(self, value, roundy, name='round'):
-
-        def just_id(value, roundy, name):
-            try:
-                if isinstance(value[0], list):
-                    for val in value:
-                        cursor.executemany(f"INSERT INTO {name + str(roundy)} VALUES (?,?,?,?)", (val,))
-            except IndexError:
-                pass
-
-        conn = sqlite3.connect(f'db/{self.targetid}.db')
-        cursor = conn.cursor()
-        just_id(value, roundy, name)
-        conn.commit()
 
     # Поиск друзей скрытого пользователя
 
@@ -434,13 +425,13 @@ class VK:
             start_round = tmp_tupple[0]
             start_friend = tmp_tupple[1]
         else:
-            self.insert_db(self.get_members(start, 0), 0)
+            DB().insert_db(self.get_members(start, 0), 0)
         if start_round != -1:
             DB().create_db(deep, 'hidden')
             if isinstance(start, int):
                 start = [start]
             for start_point in start:
-                self.insert_db(self.get_members(start_point, 0), 0, 'attempt')
+                DB().insert_db(self.get_members(start_point, 0), 0, 'attempt')
             i = 0
             zbs = None
             while zbs is None:  # ищем до тех пор, пока не найдём хоть одного друга
@@ -457,8 +448,8 @@ class VK:
                     friends = cursor.fetchall()
                     friends = Utils().unique(friends)
                     for fr in tqdm(range(len(friends))):
-                        self.insert_db(self.get_members(friends[fr][0], fr), i, 'attempt')
-                    self.insert_db([0, 'FULL', 'FULL', 2], i, 'attempt')
+                        DB().insert_db(self.get_members(friends[fr][0], fr), i, 'attempt')
+                    DB().insert_db([0, 'FULL', 'FULL', 2], i, 'attempt')
 
             sql = f'SELECT baseid from attempt{i - 1} WHERE friendid = {target}'  # Начинаем основной цикл
             cursor.execute(sql)
@@ -466,7 +457,7 @@ class VK:
             entrypoint = Utils().unique(entrypoint)
             print(f'Найдено точек входа: {len(entrypoint)}')
             for ent in entrypoint:
-                self.insert_db(self.get_members(ent, 0), 0, 'round')
+                DB().insert_db(self.get_members(ent, 0), 0, 'round')
             if start_round == 0:
                 start_round += 1
             for i in range(start_round, deep + 1):
@@ -480,7 +471,7 @@ class VK:
                     start_friend = 0
                 check = 0
                 for fr in tqdm(range(start_friend, len(friends))):
-                    self.insert_db(self.get_members(friends[fr][0], fr), i)
+                    DB().insert_db(self.get_members(friends[fr][0], fr), i)
 
                     sql = f'SELECT baseid, is_closed from round{i - 1} WHERE friendid = {target}'
                     cursor.execute(sql)
@@ -497,7 +488,7 @@ class VK:
                         check = 0
                 print(f'Раунд: {i}')
                 print(f'Найдено друзей: {len(check)}')
-                self.insert_db([[-1, 0, 0, 1]], i)  # отметка о полном заполнении таблицы
+                DB().insert_db([[-1, 0, 0, 1]], i)  # отметка о полном заполнении таблицы
 
     def open_account_start(self, targetid, roundy):
         self.targetid = self.checker(targetid)
@@ -525,7 +516,7 @@ if __name__ == "__main__":
     #############
 
     # startid = ''   # С кого начинаем поиск (для скрытого профиля)
-    targetid = 'sanyafinik'  # Кого пробиваем (id или ник)
+    targetid = ''  # Кого пробиваем (id или ник)
     roundy = 2  # число раундов. 0 - бесполезно, 1 - пару минут, 2 - час или больше, 3 - 1 или 2 дня, 4 - дурак, чтоль?
 
     #############

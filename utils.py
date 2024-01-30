@@ -6,13 +6,14 @@ import time
 
 class Utils:
 
+    @staticmethod
     @njit
-    def unique(self, list1):
-        unique = []
+    def unique(list1):
+        unique1 = []
         for number in list1:
-            if number not in unique:
-                unique.append(number)
-        return unique
+            if number not in unique1:
+                unique1.append(number)
+        return unique1
 
     # Уникализирует элементы массива. Не ускорено numba)
     @staticmethod
