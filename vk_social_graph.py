@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import os
-import time
 import sqlite3
 
 from db import DB
@@ -79,7 +78,6 @@ os.environ["NUMBA_DISABLE_PERFORMANCE_WARNINGST"] = '1'
 class VK:
 
     config_path = "config.ini"
-    #token = 'dc0fb051dc0fb051dc0fb051b8dc575004ddc0fdc0fb05183aa6f4261752c87f7a3fa69'
     config = configparser.ConfigParser()
     config.read(config_path)
     token = config.get("API", "VK_api")

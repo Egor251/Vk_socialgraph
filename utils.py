@@ -2,7 +2,6 @@
 from numba import njit
 from tqdm import tqdm
 import os
-import time
 
 
 class Utils:

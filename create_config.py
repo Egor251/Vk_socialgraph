@@ -15,5 +15,6 @@ def create_config(path):
     with open(path, "w") as config_file:
         config.write(config_file)
 
+
 if __name__ == '__main__':
     create_config('config.ini')
