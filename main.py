@@ -1,5 +1,5 @@
 from vk_social_graph import VK
-from db import DB
+
 
 class Main:
     def vk_socialgraph(self, targetid, roundy, name='normal', start=0):

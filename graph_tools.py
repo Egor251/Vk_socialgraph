@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 class GraphTools:
 
     # Формирует итоговый граф
-    def get_graph(self, lis, all_users, node_attrs):
+    @staticmethod
+    def get_graph(lis, all_users, node_attrs):
         print('формируем граф')
 
         G = nx.Graph()
@@ -53,5 +54,6 @@ class GraphTools:
         return c  # возвращаем массив типа [[baseid, friendid, 1],...] и массив с перечнем всех уникальных юзеров
 
 # Функция сохранения базы в gexf файле
-    def save_data(self, G, filename="graph.gexf"):
+    @staticmethod
+    def save_data(G, filename="graph.gexf"):
         nx.write_gexf(G, filename, encoding='utf-8', prettyprint=True, version='1.2draft')

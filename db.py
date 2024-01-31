@@ -2,6 +2,7 @@ import sqlite3
 import os
 from utils import Utils
 from tqdm import tqdm
+from graph_tools import GraphTools
 
 
 class DB:
@@ -63,12 +64,12 @@ class DB:
             total += cursor.execute(f'select baseid, friendid from round0')
             for i in tqdm(range(1, roundy + 1)):
                 cursor.execute(f'select baseid, friendid from round{i - 1}')
-                a = Utils().graph_data_preparation(cursor.fetchall())
+                a = GraphTools().graph_data_preparation(cursor.fetchall())
                 b = []
                 for j in tqdm(a):
                     sql = f'select baseid, friendid from round{i} where friendid = {j[1]}'
                     cursor.execute(sql)
-                    b += Utils().graph_data_preparation(cursor.fetchall())
+                    b += GraphTools().graph_data_preparation(cursor.fetchall())
                 print(len(b))
                 total += b
         elif type == 'hidden':
@@ -82,12 +83,13 @@ class DB:
                 b = []
                 for j in tqdm(tmp):
                     cursor.execute(f'select baseid, friendid from round{i} where friendid = {j[1]}')
-                    b += Utils().graph_data_preparation(cursor.fetchall())
-            total += Utils().graph_data_preparation(tmp)
+                    b += GraphTools().graph_data_preparation(cursor.fetchall())
+            total += GraphTools().graph_data_preparation(tmp)
             total += b
         else:
             assert False, "Дебил..."
         return total  # возвращаем массив типа [[baseid, friendid],...]
+
 
 if __name__ == '__main__':
     pass
