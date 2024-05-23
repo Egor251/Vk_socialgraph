@@ -7,7 +7,8 @@ from graph_tools import GraphTools
 
 class DB:
 
-    targetid = ''
+    targetid = ''  # id пользователя, для которого строится граф
+
 
     def create_db(self, roundy, typy='normal'):
         if not os.path.exists('db'):
@@ -15,16 +16,17 @@ class DB:
 
         conn = sqlite3.connect(f'db/{self.targetid}.db')  # или :memory: чтобы сохранить в RAM
         cursor = conn.cursor()
-        if typy == 'normal':
+        if typy == 'normal':  # для обычного профиля создаём только один тип таблиц
             # cursor.execute("""CREATE TABLE IF NOT EXISTS target(userid INT PRIMARY KEY, first_name TEXT, last_name TEXT, sex INT, city TEXT, country TEXT, birth_date TEXT, company TEXT, position TEXT, university TEXT, faculty TEXT, graduation INT, education_status TEXT, home_town TEXT, is_closed INT); """)
             for i in range(roundy + 1):
                 cursor.execute(f"""CREATE TABLE IF NOT EXISTS round{i} (
                    ID INT, baseid INT, friendid INT, is_closed INT);
                 """)
             conn.commit()
-        elif typy == 'hidden':
+        elif typy == 'hidden':  # для скрытого профиля создаём три типа таблиц
             for i in range(5):
-                cursor.execute(f"""CREATE TABLE IF NOT EXISTS attempt{i} (
+                # в эту таблицу вносятся попытки найти целевого пользователя
+                cursor.execute(f"""CREATE TABLE IF NOT EXISTS attempt{i} (  
                    ID INT, baseid INT, friendid INT, is_closed INT);
                 """)
             for i in range(roundy + 1):
