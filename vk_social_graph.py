@@ -161,7 +161,7 @@ class VK:
                 self.cursor.execute(sql)
                 friends = self.cursor.fetchall()
 
-                friends = Utils().unique(friends)
+                friends = Utils().set_unique(friends)
                 try:
                     start = friends.index((start_friend,))
                 except Exception:
@@ -178,7 +178,7 @@ class VK:
             all_users.append(b[0])
             all_users.append(b[1])
         try:
-            all_users = Utils().unique(all_users)
+            all_users = Utils().set_unique(all_users)
         except Exception:
             all_users = Utils().usual_unique(all_users)
         return all_users  # возращает массив типа [id, ..]
@@ -340,14 +340,14 @@ class VK:
                 sql = f'SELECT friendid from attempt{i - 1} WHERE is_closed = 1'
                 self.cursor.execute(sql)
                 friends = self.cursor.fetchall()
-                friends = Utils().unique(friends)
+                friends = Utils().set_unique(friends)
                 if friends.count((target,)) != 0:
                     zbs = 1
                 else:
                     sql = f'SELECT friendid from attempt{i - 1} WHERE is_closed = 0'
                     self.cursor.execute(sql)
                     friends = self.cursor.fetchall()
-                    friends = Utils().unique(friends)
+                    friends = Utils().set_unique(friends)
                     for fr in tqdm(range(len(friends))):
                         DB().insert_db(self.get_members(friends[fr][0], fr), i, 'attempt')
                     DB().insert_db([0, 'FULL', 'FULL', 2], i, 'attempt')
@@ -355,7 +355,7 @@ class VK:
             sql = f'SELECT baseid from attempt{i - 1} WHERE friendid = {target}'  # Начинаем основной цикл
             self.cursor.execute(sql)
             entrypoint = self.cursor.fetchall()
-            entrypoint = Utils().unique(entrypoint)
+            entrypoint = Utils().set_unique(entrypoint)
             print(f'Найдено точек входа: {len(entrypoint)}')
             for ent in entrypoint:
                 DB().insert_db(self.get_members(ent, 0), 0, 'round')
@@ -378,7 +378,7 @@ class VK:
                     self.cursor.execute(sql)
                     check = self.cursor.fetchall()
                     try:
-                        check = Utils().unique(check)
+                        check = Utils().set_unique(check)
                         value = []
                         for item in check:
                             value.append([target, item[0], item[1]])

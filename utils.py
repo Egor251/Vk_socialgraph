@@ -25,5 +25,7 @@ class Utils:
                 unique.append(number)
         return unique
 
-
+    @staticmethod
+    def set_unique(list1):
+        return list(set(list1))
 
